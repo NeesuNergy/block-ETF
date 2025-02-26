@@ -14,6 +14,7 @@ interface IETF {
     error InvalidTotalWeights();
     error Forbidden();
     error PriceFeedNotFound(address token);
+    error NothingClaimable();
 
     event MinMintAmountUpdated(
         uint256 oldMinMintAmount,
@@ -58,6 +59,14 @@ interface IETF {
     event TokenRemoved(address token, uint256 index);
 
     event Rebalanced(uint256[] reservesBefore, uint256[] reservesAfter);
+
+    event SupplierIndexUpdated(
+        address indexed supplier,
+        uint256 deltaIndex,
+        uint256 lastIndex
+    );
+
+    event RewardClaimed(address indexed supplier, uint256 claimedAmount);
 
     function feeTo() external view returns (address);
 
@@ -166,4 +175,28 @@ interface IETF {
     ) external;
 
     function rebalance() external;
+
+    function updateMiningSpeedPerSecond(uint256 speed) external;
+
+    function claimReward() external;
+
+    function miningToken() external view returns (address);
+
+    function INDEX_SCALE() external view returns (uint256);
+
+    function miningSpeedPerSecond() external view returns (uint256);
+
+    function miningLastIndex() external view returns (uint256);
+
+    function lastIndexUpdateTime() external view returns (uint256);
+
+    function supplierLastIndex(
+        address supplier
+    ) external view returns (uint256);
+
+    function supplierRewardAccrued(
+        address supplier
+    ) external view returns (uint256);
+
+    function getClaimableReward() external view returns (uint256);
 }

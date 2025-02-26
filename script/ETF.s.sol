@@ -13,6 +13,7 @@ contract ETFScript is Script {
     address swapRouter;
     address weth9;
     address etfQuoter;
+    address miningToken;
 
     address feeTo;
     uint24 investFee;
@@ -67,6 +68,8 @@ contract ETFScript is Script {
 
         rebalanceInterval = 7 * 24 * 3600;
         rebalanceDeviance = 50000;
+
+        miningToken = 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14;
     }
 
     function run() public {
@@ -81,7 +84,8 @@ contract ETFScript is Script {
             initTokenAmountPerShares,
             swapRouter,
             weth9,
-            etfQuoter
+            etfQuoter,
+            miningToken
         );
         console.log("ETF:", address(etf));
 

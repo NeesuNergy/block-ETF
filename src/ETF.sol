@@ -20,6 +20,7 @@ contract ETF is IETF, ERC20, Ownable {
     using Path for bytes;
 
     uint24 public constant HUNDRED_PERCENT = 1000000;
+    uint256 public constant INDEX_SCALE = 1e36;
 
     address public feeTo;
     uint24 public investFee;
@@ -28,12 +29,20 @@ contract ETF is IETF, ERC20, Ownable {
     address public immutable swapRouter;
     address public immutable weth;
     address public etfQuoter;
+
     uint256 public lastRebalanceTime;
     uint256 public rebalanceInterval;
     uint24 public rebalanceDeviance;
 
+    address public miningToken;
+    uint256 public miningSpeedPerSecond;
+    uint256 public miningLastIndex;
+    uint256 public lastIndexUpdateTime;
+
     mapping(address token => address priceFeed) public getPriceFeed;
     mapping(address token => uint24 targetWeight) public getTokenTargetWeight;
+    mapping(address => uint256) public supplierLastIndex;
+    mapping(address => uint256) public supplierRewardAccrued;
 
     address[] private _tokens; // tokens list
     uint256[] private _initTokenAmountPerShares; // Token amount required per 1 ETF share，used in the first invest
@@ -55,7 +64,8 @@ contract ETF is IETF, ERC20, Ownable {
         uint256[] memory initTokenAmountPerShares_,
         address swapRouter_,
         address weth_,
-        address etfQuoter_
+        address etfQuoter_,
+        address miningToken_
     ) ERC20(name_, symbol_) Ownable(msg.sender) {
         _tokens = tokens_;
         _initTokenAmountPerShares = initTokenAmountPerShares_;
@@ -63,6 +73,8 @@ contract ETF is IETF, ERC20, Ownable {
         swapRouter = swapRouter_;
         weth = weth_;
         etfQuoter = etfQuoter_;
+        miningToken = miningToken_;
+        miningLastIndex = 1e36;
     }
 
     receive() external payable {}
@@ -672,5 +684,89 @@ contract ETF is IETF, ERC20, Ownable {
                 }
             }
         }
+    }
+
+    function updateMiningSpeedPerSecond(uint256 newSpeed) external onlyOwner {
+        _updateMiningIndex();
+        miningSpeedPerSecond = newSpeed;
+    }
+
+    function withdrawMiningToken(address to, uint256 amount) external onlyOwner {
+        IERC20(miningToken).safeTransfer(to, amount);
+    }
+
+    function claimReward() external {
+        _updateMiningIndex();
+        _updateSupplierIndex(msg.sender);
+
+        uint256 claimable = supplierRewardAccrued[msg.sender];
+        if(claimable == 0) revert NothingClaimable();
+
+        supplierRewardAccrued[msg.sender] = 0;
+        IERC20(miningToken).safeTransfer(msg.sender, claimable);
+
+        emit RewardClaimed(msg.sender, claimable);
+    }
+
+    function getClaimableReward() external view returns(uint256 claimable) {
+        claimable = supplierRewardAccrued[msg.sender];
+
+        uint256 globalLastIndex = miningLastIndex;
+        uint256 totalSupply = totalSupply();
+        uint256 deltaTime = block.timestamp - lastIndexUpdateTime;
+        if(totalSupply > 0 && deltaTime > 0 && miningSpeedPerSecond > 0) {
+            uint256 deltaReward = miningSpeedPerSecond * deltaTime;
+            uint256 deltaIndex = deltaReward.mulDiv(INDEX_SCALE, totalSupply);
+            globalLastIndex += deltaIndex;
+        }
+
+        uint256 supplierIndex = supplierLastIndex[msg.sender];
+        uint256 supplierSupply = balanceOf(msg.sender);
+        uint256 supplierDeltaIndex;
+        if(supplierIndex > 0 && supplierSupply > 0) {
+            supplierDeltaIndex = globalLastIndex - supplierIndex;
+            uint256 supplierDeltaReward = supplierSupply.mulDiv(supplierDeltaIndex, INDEX_SCALE);
+            claimable += supplierDeltaReward;
+        }
+
+        return claimable;
+    }
+
+    function _updateMiningIndex() internal {
+        if(miningLastIndex == 0) {
+            miningLastIndex = INDEX_SCALE;
+            lastIndexUpdateTime = block.timestamp;
+        } else {
+            uint256 totalSupply = totalSupply();
+            uint256 deltaTime = block.timestamp - lastIndexUpdateTime;
+            if(totalSupply > 0 && deltaTime > 0 && miningSpeedPerSecond > 0) {
+                uint256 deltaReward = miningSpeedPerSecond * deltaTime;
+                uint256 deltaIndex = deltaReward.mulDiv(INDEX_SCALE, totalSupply);
+                miningLastIndex += deltaIndex;
+                lastIndexUpdateTime = block.timestamp;
+            } else if(deltaTime > 0) {
+                lastIndexUpdateTime = block.timestamp;
+            }
+        }
+    }
+
+    function _updateSupplierIndex(address supplier) internal {
+        uint256 supplierIndex = supplierLastIndex[supplier];
+        uint256 supplierSupply = balanceOf(supplier);
+        uint256 supplierDeltaIndex;
+        if(supplierIndex > 0 && supplierSupply > 0) {
+            supplierDeltaIndex = miningLastIndex - supplierIndex;
+            uint256 supplierDeltaReward = supplierSupply.mulDiv(supplierDeltaIndex, INDEX_SCALE);
+            supplierRewardAccrued[supplier] += supplierDeltaReward;
+        }
+        supplierLastIndex[supplier] = miningLastIndex;
+        emit SupplierIndexUpdated(supplier, supplierDeltaIndex, supplierIndex);
+    }
+
+    function _update(address from, address to, uint256 value) internal override {
+        _updateMiningIndex();
+        if(from != address(0)) _updateSupplierIndex(from);
+        if(to != address(0)) _updateSupplierIndex(to);
+        super._update(from, to, value);
     }
 }
