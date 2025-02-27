@@ -13,8 +13,11 @@ import {IV3SwapRouter} from "./interfaces/IV3SwapRouter.sol";
 import {AggregatorV3Interface} from "./interfaces/AggregatorV3Interface.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
 import {IETFQuoter} from "./interfaces/IETFQuoter.sol";
+import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/contracts/token/ERC20/ERC20Upgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/contracts/access/OwnableUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 
-contract ETF is IETF, ERC20, Ownable {
+contract ETF is IETF, Initializable, ERC20Upgradeable, OwnableUpgradeable {
     using SafeERC20 for IERC20;
     using FullMath for uint256;
     using Path for bytes;
@@ -26,8 +29,8 @@ contract ETF is IETF, ERC20, Ownable {
     uint24 public investFee;
     uint24 public redeemFee;
     uint256 public minMintAmount;
-    address public immutable swapRouter;
-    address public immutable weth;
+    address public swapRouter;
+    address public weth;
     address public etfQuoter;
 
     uint256 public lastRebalanceTime;
@@ -56,28 +59,38 @@ contract ETF is IETF, ERC20, Ownable {
         _;
     }
 
-    constructor(
-        string memory name_,
-        string memory symbol_,
-        uint256 minMintAmount_,
-        address[] memory tokens_,
-        uint256[] memory initTokenAmountPerShares_,
-        address swapRouter_,
-        address weth_,
-        address etfQuoter_,
-        address miningToken_
-    ) ERC20(name_, symbol_) Ownable(msg.sender) {
-        _tokens = tokens_;
-        _initTokenAmountPerShares = initTokenAmountPerShares_;
-        minMintAmount = minMintAmount_;
-        swapRouter = swapRouter_;
-        weth = weth_;
-        etfQuoter = etfQuoter_;
-        miningToken = miningToken_;
-        miningLastIndex = 1e36;
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
 
     receive() external payable {}
+
+    struct InitializeParams {
+        address owner;
+        string name;
+        string symbol;
+        uint256 minMintAmount;
+        address[] tokens;
+        uint256[] initTokenAmountPerShares;
+        address swapRouter;
+        address weth;
+        address etfQuoter;
+        address miningToken;
+    }
+
+    function initialize(InitializeParams memory initializeParams) public initializer {
+        __ERC20_init(initializeParams.name, initializeParams.symbol);
+        __Ownable_init(initializeParams.owner);
+
+        _tokens = initializeParams.tokens;
+        _initTokenAmountPerShares = initializeParams.initTokenAmountPerShares;
+        minMintAmount = initializeParams.minMintAmount;
+        swapRouter = initializeParams.swapRouter;
+        weth = initializeParams.weth;
+        etfQuoter = initializeParams.etfQuoter;
+        miningToken = initializeParams.miningToken;
+    }
 
     function setFee(
         address feeTo_,
@@ -769,4 +782,7 @@ contract ETF is IETF, ERC20, Ownable {
         if(to != address(0)) _updateSupplierIndex(to);
         super._update(from, to, value);
     }
+
+    // Storage gaps
+    uint256[50] private __gap;
 }
