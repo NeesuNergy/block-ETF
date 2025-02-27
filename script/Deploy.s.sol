@@ -46,44 +46,29 @@ contract DeployScript is Script {
         string memory name = "ETF";
         string memory symbol = "ETF";
 
-        address[] memory tokens = new address[](8);
-        address WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
+        address[] memory tokens = new address[](4);
+        address weth9 = 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14;
         {
-            address BTCB = 0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c;
-            address ETH = 0x2170Ed0880ac9A755fd29B2688956BD959F933F8;
-            address XRP = 0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE;
-            address SOL = 0x570A5D26f7765Ecb712C0924E4De545B89fD43dF;
-            address DOGE = 0xbA2aE424d960c26247Dd6c32edC70B295c744C43; // decimals: 8
-            address ADA = 0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47;
-            address CAKE = 0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82;
-            tokens[0] = BTCB;
+            address BTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
+            address ETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+            address BNB = 0xB8c77482e45F1F44dE1745F52C74426C631bDD52;
+            address SOL = 0xd1D82d3Ab815E0B47e38EC2d666c5b8AA05Ae501;
+            tokens[0] = BTC;
             tokens[1] = ETH;
-            tokens[2] = XRP;
+            tokens[2] = BNB;
             tokens[3] = SOL;
-            tokens[4] = WBNB;
-            tokens[5] = DOGE;
-            tokens[6] = ADA;
-            tokens[7] = CAKE;
         }
 
-        address[] memory priceFeeds = new address[](8);
+        address[] memory priceFeeds = new address[](4);
         {
-            address btcPriceFeed = 0x264990fbd0A4796A3E3d8E37C4d5F87a3aCa5Ebf;
-            address ethPriceFeed = 0x9ef1B8c0E4F7dc8bF5719Ea496883DC6401d5b2e;
-            address xrpPriceFeed = 0x93A67D414896A280bF8FFB3b389fE3686E014fda;
-            address solPriceFeed = 0x0E8a53DD9c13589df6382F13dA6B3Ec8F919B323;
-            address bnbPriceFeed = 0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE;
-            address dogePriceFeed = 0x3AB0A0d137D4F946fBB19eecc6e92E64660231C8;
-            address adaPriceFeed = 0xa767f745331D267c7751297D982b050c93985627;
-            address cakePriceFeed = 0xB6064eD41d4f67e353768aA239cA86f4F73665a1;
+            address btcPriceFeed = 0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c;
+            address ethPriceFeed = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419;
+            address bnbPriceFeed = 0x14e613AC84a31f709eadbdF89C6CC390fDc9540A;
+            address solPriceFeed = 0x4ffC43a60e009B551865A93d232E33Fce9f01507;
             priceFeeds[0] = btcPriceFeed;
             priceFeeds[1] = ethPriceFeed;
-            priceFeeds[2] = xrpPriceFeed;
+            priceFeeds[2] = bnbPriceFeed;
             priceFeeds[3] = solPriceFeed;
-            priceFeeds[4] = bnbPriceFeed;
-            priceFeeds[5] = dogePriceFeed;
-            priceFeeds[6] = adaPriceFeed;
-            priceFeeds[7] = cakePriceFeed;
         }
 
         uint256[] memory initTokenAmountPerShares = new uint256[](
@@ -108,7 +93,6 @@ contract DeployScript is Script {
         {
             uint256 minMintAmount = 1e16;
             address swapRouter = 0x1b81D678ffb9C0263b24A97847620C99d213eB14;
-            address usdt = 0x55d398326f99059fF775485246999027B3197955;
 
             ETF.InitializeParams memory params = ETF
                 .InitializeParams(
@@ -119,8 +103,7 @@ contract DeployScript is Script {
                     tokens,
                     initTokenAmountPerShares,
                     swapRouter,
-                    weth,
-                    usdt,
+                    weth9,
                     etfQuoter,
                     ept
                 );
